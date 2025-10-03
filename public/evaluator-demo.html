@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tekken Input Evaluator Demo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Courier New', monospace;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #fff;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      text-align: center;
+      color: #ffd700;
+      font-size: 2.5em;
+      margin-bottom: 30px;
+      text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    }
+    
+    .test-section {
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px solid #4ecdc4;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .test-section h2 {
+      color: #4ecdc4;
+      margin-bottom: 15px;
+    }
+    
+    .test-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 15px;
+    }
+    
+    .test-case {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid #666;
+      border-radius: 8px;
+      padding: 15px;
+      transition: all 0.3s;
+    }
+    
+    .test-case:hover {
+      border-color: #4ecdc4;
+      transform: translateY(-2px);
+    }
+    
+    .test-case.passed {
+      border-color: #00ff00;
+      background: rgba(0, 255, 0, 0.1);
+    }
+    
+    .test-case.failed {
+      border-color: #ff0000;
+      background: rgba(255, 0, 0, 0.1);
+    }
+    
+    .test-name {
+      font-weight: bold;
+      color: #ffd700;
+      margin-bottom: 10px;
+    }
+    
+    .test-inputs {
+      color: #4ecdc4;
+      font-size: 0.9em;
+      margin-bottom: 5px;
+    }
+    
+    .test-result {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #666;
+    }
+    
+    .success { color: #00ff00; }
+    .fail { color: #ff0000; }
+    .warning { color: #ffaa00; }
+    .info { color: #4ecdc4; }
+    
+    .result-detail {
+      font-size: 0.85em;
+      margin: 3px 0;
+    }
+    
+    .tip {
+      background: rgba(255, 170, 0, 0.2);
+      border-left: 3px solid #ffaa00;
+      padding: 8px;
+      margin-top: 8px;
+      font-size: 0.85em;
+    }
+    
+    .stats {
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 30px;
+      display: flex;
+      justify-content: space-around;
+      text-align: center;
+    }
+    
+    .stat-item {
+      flex: 1;
+    }
+    
+    .stat-value {
+      font-size: 2em;
+      font-weight: bold;
+      color: #ffd700;
+    }
+    
+    .stat-label {
+      font-size: 0.9em;
+      color: #aaa;
+      margin-top: 5px;
+    }
+    
+    button {
+      background: #4ecdc4;
+      color: #000;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 1em;
+      transition: all 0.3s;
+      margin: 5px;
+    }
+    
+    button:hover {
+      background: #3da89f;
+      transform: scale(1.05);
+    }
+    
+    .controls {
+      text-align: center;
+      margin: 20px 0;
+    }
+    
+    .json-output {
+      background: #000;
+      border: 1px solid #4ecdc4;
+      border-radius: 5px;
+      padding: 15px;
+      margin-top: 10px;
+      overflow-x: auto;
+      font-size: 0.85em;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    
+    pre {
+      margin: 0;
+      color: #00ff00;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎮 TEKKEN INPUT EVALUATOR</h1>
+    
+    <div class="controls">
+      <button onclick="runAllTests()">Run All Tests</button>
+      <button onclick="runPositiveTests()">Positive Tests</button>
+      <button onclick="runNegativeTests()">Negative Tests</button>
+      <button onclick="runEdgeTests()">Edge Tests</button>
+      <button onclick="runNoisyTests()">Noisy Tests</button>
+      <button onclick="clearResults()">Clear Results</button>
+    </div>
+    
+    <div id="stats" class="stats" style="display: none;">
+      <div class="stat-item">
+        <div class="stat-value" id="totalTests">0</div>
+        <div class="stat-label">Total Tests</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value success" id="passedTests">0</div>
+        <div class="stat-label">Passed</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value fail" id="failedTests">0</div>
+        <div class="stat-label">Failed</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="successRate">0%</div>
+        <div class="stat-label">Success Rate</div>
+      </div>
+    </div>
+    
+    <div id="results"></div>
+  </div>
+
+  <script src="../src/TekkenInputEvaluator.js"></script>
+  <script>
+    function renderTestResults(report) {
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = '';
+      
+      // Update stats
+      document.getElementById('stats').style.display = 'flex';
+      document.getElementById('totalTests').textContent = report.summary.total;
+      document.getElementById('passedTests').textContent = report.summary.passed;
+      document.getElementById('failedTests').textContent = report.summary.failed;
+      document.getElementById('successRate').textContent = 
+        ((report.summary.passed / report.summary.total) * 100).toFixed(1) + '%';
+      
+      // Render each category
+      for (const [category, categoryData] of Object.entries(report.categories)) {
+        const section = document.createElement('div');
+        section.className = 'test-section';
+        
+        const header = document.createElement('h2');
+        header.textContent = `${category.toUpperCase()} TESTS (${categoryData.passed}/${categoryData.tests.length})`;
+        section.appendChild(header);
+        
+        const grid = document.createElement('div');
+        grid.className = 'test-grid';
+        
+        for (const test of categoryData.tests) {
+          const testCard = document.createElement('div');
+          testCard.className = `test-case ${test.passed ? 'passed' : 'failed'}`;
+          
+          const testName = document.createElement('div');
+          testName.className = 'test-name';
+          testName.textContent = test.passed ? '✓ ' + test.testName : '✗ ' + test.testName;
+          testCard.appendChild(testName);
+          
+          const testInputs = document.createElement('div');
+          testInputs.className = 'test-inputs';
+          testInputs.textContent = `Inputs: ${test.testCase.inputs.join(' → ')}`;
+          testCard.appendChild(testInputs);
+          
+          const frameGaps = document.createElement('div');
+          frameGaps.className = 'test-inputs';
+          frameGaps.textContent = `Frames: [${test.testCase.frameGaps.join(', ')}]`;
+          testCard.appendChild(frameGaps);
+          
+          if (test.results) {
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'test-result';
+            
+            for (const result of test.results) {
+              const details = `
+                <div class="result-detail"><strong>Move:</strong> ${result.moveDetected} ${result.perfect ? '⚡' : ''}</div>
+                <div class="result-detail"><strong>Success:</strong> <span class="${result.success ? 'success' : 'fail'}">${result.success}</span></div>
+                <div class="result-detail"><strong>Execution:</strong> ${result.executionFrame}f / ${result.targetFrame}f</div>
+                <div class="result-detail"><strong>Timing:</strong> ${result.timingOffset > 0 ? '+' : ''}${result.timingOffset}f</div>
+                <div class="result-detail"><strong>Buffer:</strong> ${result.bufferUsed}f avg</div>
+                <div class="result-detail"><strong>Reason:</strong> ${result.reason}</div>
+              `;
+              resultDiv.innerHTML += details;
+              
+              if (result.tip && result.tip !== '⚡ Perfect!') {
+                const tip = document.createElement('div');
+                tip.className = 'tip';
+                tip.textContent = '💡 ' + result.tip;
+                resultDiv.appendChild(tip);
+              }
+            }
+            
+            testCard.appendChild(resultDiv);
+          } else {
+            const noResult = document.createElement('div');
+            noResult.className = 'test-result warning';
+            noResult.textContent = 'No move detected';
+            testCard.appendChild(noResult);
+          }
+          
+          if (test.testCase.note) {
+            const note = document.createElement('div');
+            note.className = 'result-detail info';
+            note.style.marginTop = '8px';
+            note.textContent = '📝 ' + test.testCase.note;
+            testCard.appendChild(note);
+          }
+          
+          grid.appendChild(testCard);
+        }
+        
+        section.appendChild(grid);
+        resultsDiv.appendChild(section);
+      }
+      
+      // Add JSON output section
+      const jsonSection = document.createElement('div');
+      jsonSection.className = 'test-section';
+      jsonSection.innerHTML = '<h2>JSON OUTPUT (Sample)</h2>';
+      
+      const jsonOutput = document.createElement('div');
+      jsonOutput.className = 'json-output';
+      
+      // Get first successful result for JSON display
+      const firstResult = Object.values(report.categories)[0]?.tests[0]?.results?.[0];
+      if (firstResult) {
+        jsonOutput.innerHTML = `<pre>${JSON.stringify(firstResult, null, 2)}</pre>`;
+      }
+      
+      jsonSection.appendChild(jsonOutput);
+      resultsDiv.appendChild(jsonSection);
+    }
+    
+    function runAllTests() {
+      const report = TestCaseGenerator.runAllTests();
+      renderTestResults(report);
+    }
+    
+    function runPositiveTests() {
+      const tests = TestCaseGenerator.generatePositiveTests();
+      const report = {
+        summary: { total: 0, passed: 0, failed: 0 },
+        categories: { positive: { tests: [], passed: 0, failed: 0 } }
+      };
+      
+      tests.forEach(test => {
+        const result = TestCaseGenerator.runTest(test);
+        report.categories.positive.tests.push(result);
+        report.summary.total++;
+        if (result.passed) {
+          report.summary.passed++;
+          report.categories.positive.passed++;
+        } else {
+          report.summary.failed++;
+          report.categories.positive.failed++;
+        }
+      });
+      
+      renderTestResults(report);
+    }
+    
+    function runNegativeTests() {
+      const tests = TestCaseGenerator.generateNegativeTests();
+      const report = {
+        summary: { total: 0, passed: 0, failed: 0 },
+        categories: { negative: { tests: [], passed: 0, failed: 0 } }
+      };
+      
+      tests.forEach(test => {
+        const result = TestCaseGenerator.runTest(test);
+        report.categories.negative.tests.push(result);
+        report.summary.total++;
+        if (result.passed) {
+          report.summary.passed++;
+          report.categories.negative.passed++;
+        } else {
+          report.summary.failed++;
+          report.categories.negative.failed++;
+        }
+      });
+      
+      renderTestResults(report);
+    }
+    
+    function runEdgeTests() {
+      const tests = TestCaseGenerator.generateEdgeTests();
+      const report = {
+        summary: { total: 0, passed: 0, failed: 0 },
+        categories: { edge: { tests: [], passed: 0, failed: 0 } }
+      };
+      
+      tests.forEach(test => {
+        const result = TestCaseGenerator.runTest(test);
+        report.categories.edge.tests.push(result);
+        report.summary.total++;
+        if (result.passed) {
+          report.summary.passed++;
+          report.categories.edge.passed++;
+        } else {
+          report.summary.failed++;
+          report.categories.edge.failed++;
+        }
+      });
+      
+      renderTestResults(report);
+    }
+    
+    function runNoisyTests() {
+      const tests = TestCaseGenerator.generateNoisyTests();
+      const report = {
+        summary: { total: 0, passed: 0, failed: 0 },
+        categories: { noisy: { tests: [], passed: 0, failed: 0 } }
+      };
+      
+      tests.forEach(test => {
+        const result = TestCaseGenerator.runTest(test);
+        report.categories.noisy.tests.push(result);
+        report.summary.total++;
+        if (result.passed) {
+          report.summary.passed++;
+          report.categories.noisy.passed++;
+        } else {
+          report.summary.failed++;
+          report.categories.noisy.failed++;
+        }
+      });
+      
+      renderTestResults(report);
+    }
+    
+    function clearResults() {
+      document.getElementById('results').innerHTML = '';
+      document.getElementById('stats').style.display = 'none';
+    }
+    
+    // Auto-run on load
+    window.addEventListener('load', () => {
+      console.log('🎮 Tekken Input Evaluator Ready!');
+      console.log('Click "Run All Tests" to start evaluation');
+    });
+  </script>
+</body>
+</html>
+
