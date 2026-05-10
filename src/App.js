@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { RotateCcw, Search, Info } from 'lucide-react';
+import { Settings, Play, RotateCcw, Search, Info } from 'lucide-react';
 
 const TekkenInputTrainer = () => {
   const [inputHistory, setInputHistory] = useState([]);
@@ -7,6 +7,7 @@ const TekkenInputTrainer = () => {
   const [lastPerfect, setLastPerfect] = useState(false);
   const [streak, setStreak] = useState(0);
   const [bestTimes, setBestTimes] = useState({});
+  const [showSettings, setShowSettings] = useState(false);
   const [detectionMode, setDetectionMode] = useState('ewgf'); // Default to ewgf
   const [filterType, setFilterType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -25,6 +26,7 @@ const TekkenInputTrainer = () => {
   const [currentProgress, setCurrentProgress] = useState(0);
   const [flashSuccess, setFlashSuccess] = useState(false);
   
+  const sessionStartTime = useRef(Date.now());
   const lastInputTime = useRef(Date.now());
   const pressedDirections = useRef(new Set());
   const pressedButtons = useRef(new Set());
@@ -88,7 +90,7 @@ const TekkenInputTrainer = () => {
     },
     kbd: {
       name: 'KBD',
-      input: ['b', 'n', 'b', 'db', 'b'],
+      input: ['b', 'b', 'db', 'b'],
       maxFrames: 12,
       description: 'Korean Backdash',
       startup: '--',
@@ -101,7 +103,7 @@ const TekkenInputTrainer = () => {
     },
     run: {
       name: 'RUN',
-      input: ['f', 'n', 'f', 'n', 'f'],
+      input: ['f', 'f', 'f'],
       maxFrames: 20,
       description: 'Forward run',
       startup: '--',
@@ -127,7 +129,7 @@ const TekkenInputTrainer = () => {
     },
     backdash: {
       name: 'BACKDASH',
-      input: ['b', 'n', 'b'],
+      input: ['b', 'b'],
       maxFrames: 15,
       description: 'Quick back dash',
       startup: '--',
@@ -187,28 +189,24 @@ const TekkenInputTrainer = () => {
       
       if (current.includes('+')) {
         const parts = current.split('+');
-        const first = parts[0];
-        if (['f', 'b', 'u', 'd', 'df', 'db', 'uf', 'ub'].includes(first)) {
-          if (cleanedBuffer.length === 0 || cleanedBuffer[cleanedBuffer.length - 1] !== first) {
-            cleanedBuffer.push(first);
-          }
-          const rest = parts.slice(1).join('+');
-          if (rest) {
-            if (cleanedBuffer.length === 0 || cleanedBuffer[cleanedBuffer.length - 1] !== rest) {
-              cleanedBuffer.push(rest);
-            }
-          }
-        } else {
-          if (cleanedBuffer.length === 0 || cleanedBuffer[cleanedBuffer.length - 1] !== current) {
-            cleanedBuffer.push(current);
-          }
-        }
+        cleanedBuffer.push(parts[0]);
+        cleanedBuffer.push(parts[1]);
         continue;
       }
       
-      if (cleanedBuffer.length === 0 || cleanedBuffer[cleanedBuffer.length - 1] !== current) {
-        cleanedBuffer.push(current);
+      if (current === 'n') {
+        const prev = cleanedBuffer[cleanedBuffer.length - 1];
+        const next = buffer[i + 1];
+        
+        if (next && next.includes('+')) {
+          const nextDir = next.split('+')[0];
+          if (prev === nextDir) continue;
+        } else if (prev && next && prev === next && ['f', 'b', 'u', 'd'].includes(prev)) {
+          continue;
+        }
       }
+      
+      cleanedBuffer.push(current);
     }
 
     if (detectionMode !== 'auto') {
@@ -217,59 +215,61 @@ const TekkenInputTrainer = () => {
       const required = targetMove.input;
       
       let matchCount = 0;
-      for (let k = Math.min(cleanedBuffer.length, required.length); k > 0; k--) {
-        const suffix = cleanedBuffer.slice(-k);
-        let match = true;
-        for (let i = 0; i < k; i++) {
-          if (suffix[i] !== required[i]) {
-            match = false;
-            break;
-          }
-        }
-        if (match) {
-          matchCount = k;
-          break;
+      for (let i = 0; i < cleanedBuffer.length && i < required.length; i++) {
+        if (cleanedBuffer[i] === required[i]) {
+          matchCount++;
+        } else {
+          setStreak(0);
+          setCurrentProgress(0);
+          inputBuffer.current = [];
+          moveStartTime.current = null;
+          return;
         }
       }
       
       setCurrentProgress(matchCount);
       
-      if (matchCount === 1) {
-        moveStartTime.current = now;
-      } else if (matchCount === 0) {
+      if (cleanedBuffer.length > required.length) {
         setStreak(0);
-      }
-      
-      if (matchCount === required.length) {
-        const executionTime = now - moveStartTime.current;
-        const frames = Math.round(executionTime / 16.67);
-        
-        const isPerfect = frames <= targetMove.maxFrames;
-        
-        setDetectedMove({ ...targetMove, frames, isPerfect });
-        setLastPerfect(isPerfect);
-        
-        setFlashSuccess(true);
-        setTimeout(() => setFlashSuccess(false), 500);
-
-        if (isPerfect) {
-          setStreak(prev => prev + 1);
-          setBestTimes(prev => ({
-            ...prev,
-            [detectionMode]: !bestTimes[detectionMode] || frames < bestTimes[detectionMode] ? frames : bestTimes[detectionMode]
-          }));
-        } else {
-          setStreak(prev => prev + 1);
-        }
-        
+        setCurrentProgress(0);
         inputBuffer.current = [];
         moveStartTime.current = null;
-        setCurrentProgress(0);
+        return;
+      }
+      
+      if (cleanedBuffer.length === required.length) {
+        const matches = cleanedBuffer.every((inp, idx) => inp === required[idx]);
         
-        setTimeout(() => {
-          setLastPerfect(false);
-          setDetectedMove(null);
-        }, 2000);
+        if (matches) {
+          const executionTime = now - moveStartTime.current;
+          const frames = Math.round(executionTime / 16.67);
+          
+          const isPerfect = frames <= targetMove.maxFrames;
+          
+          setDetectedMove({ ...targetMove, frames, isPerfect });
+          setLastPerfect(isPerfect);
+          
+          if (isPerfect) {
+            setFlashSuccess(true);
+            setTimeout(() => setFlashSuccess(false), 500);
+            setStreak(prev => prev + 1);
+            setBestTimes(prev => ({
+              ...prev,
+              [detectionMode]: !bestTimes[detectionMode] || frames < bestTimes[detectionMode] ? frames : bestTimes[detectionMode]
+            }));
+          } else {
+            setStreak(prev => prev + 1);
+          }
+          
+          inputBuffer.current = [];
+          moveStartTime.current = null;
+          setCurrentProgress(0);
+          
+          setTimeout(() => {
+            setLastPerfect(false);
+            setDetectedMove(null);
+          }, 2000);
+        }
       }
     }
   };
@@ -461,7 +461,6 @@ const TekkenInputTrainer = () => {
         clearTimeout(directionDebounceTimer.current);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyBinds, editingKey]);
 
   useEffect(() => {
@@ -493,32 +492,34 @@ const TekkenInputTrainer = () => {
 
         return (
           <React.Fragment key={idx}>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {dir && (
-                 <div className={`w-20 h-20 flex items-center justify-center rounded-xl border-2 text-4xl font-bold transition-all duration-300
-                  ${isActive ? 'border-purple-500 text-purple-400 bg-purple-900/30 shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'border-[#2d2d3f] text-gray-400 bg-[#13131A]'}
+                 <div className={`w-12 h-12 flex items-center justify-center rounded-md border text-xl font-bold transition-all
+                  ${isActive ? 'border-purple-500 text-purple-400 bg-purple-900/20' : 'border-[#2d2d3f] text-gray-400 bg-[#13131A]'}
                 `}>
                   {notationMap[dir] || dir}
                 </div>
               )}
-              {dir && <span className="text-gray-600 text-sm font-bold">+</span>}
-              <div className={`w-20 h-20 rounded-full flex items-center justify-center text-4xl font-bold transition-all duration-300
-                ${isActive || flashSuccess ? 'bg-yellow-400 text-black shadow-[0_0_25px_rgba(250,204,21,0.6)] scale-110' : 'bg-gray-700 text-gray-400'}
+              {dir && <span className="text-gray-600 text-xs">+</span>}
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold transition-all
+                ${isActive || flashSuccess ? 'bg-yellow-400 text-black shadow-[0_0_15px_rgba(250,204,21,0.5)]' : 'bg-gray-700 text-gray-400'}
               `}>
                 {notationMap[btn] || btn}
               </div>
             </div>
+            {idx < move.input.length - 1 && <span className="text-gray-600">→</span>}
           </React.Fragment>
         );
       }
 
       return (
         <React.Fragment key={idx}>
-          <div className={`w-20 h-20 flex items-center justify-center rounded-xl border-2 text-4xl font-bold transition-all duration-300
-            ${isActive ? 'border-purple-500 text-purple-400 bg-purple-900/30 shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'border-[#2d2d3f] text-gray-400 bg-[#13131A]'}
+          <div className={`w-12 h-12 flex items-center justify-center rounded-md border text-xl font-bold transition-all
+            ${isActive ? 'border-purple-500 text-purple-400 bg-purple-900/20' : 'border-[#2d2d3f] text-gray-400 bg-[#13131A]'}
           `}>
             {notationMap[inp] || inp}
           </div>
+          {idx < move.input.length - 1 && <span className="text-gray-600">→</span>}
         </React.Fragment>
       );
     });
@@ -654,31 +655,7 @@ const TekkenInputTrainer = () => {
                 <p className="text-gray-400 text-lg">{activeMove.description}</p>
               </div>
 
-              <div className={`rounded-xl p-8 mb-4 border-2 transition-all duration-300 ${flashSuccess ? 'bg-yellow-500/40 border-yellow-400 ring-4 ring-yellow-400 shadow-[0_0_60px_rgba(250,204,21,0.6)] scale-[1.05]' : 'bg-[#0b0c10] border-[#1A1A24]'}`}>
-                <div className={`text-xs font-bold tracking-wider mb-8 text-center ${flashSuccess ? 'text-yellow-400' : 'text-gray-500'}`}>DRILL</div>
-                
-                <div className="flex justify-center items-center gap-6">
-                  {renderDrillSequence(activeMove)}
-                </div>
-              </div>
-
-              <div className="text-xs text-gray-600 font-mono mb-4">
-                WASD - directions · U I J K - buttons 1 2 3 4
-              </div>
-
-              {/* Status Indicator */}
-              <div className="flex justify-between items-center mb-8">
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-gray-500">Streak: <span className="text-white font-bold">{streak}</span></span>
-                  {lastPerfect && <span className="text-xs font-bold text-yellow-400 animate-pulse bg-yellow-400/10 px-2 py-1 rounded">PERFECT!</span>}
-                  {detectedMove && !lastPerfect && <span className="text-xs font-bold text-green-400 bg-green-400/10 px-2 py-1 rounded">SUCCESS</span>}
-                </div>
-                {bestTimes[detectionMode] && (
-                  <span className="text-sm text-gray-500">Best Time: <span className="text-green-400 font-bold">{bestTimes[detectionMode]}F</span></span>
-                )}
-              </div>
-
-              <div className="grid grid-cols-4 gap-4 mt-2">
+              <div className="grid grid-cols-4 gap-4">
                 <div className="bg-[#13131A] border border-[#1A1A24] rounded-lg p-5">
                   <div className="text-xs font-bold text-gray-500 mb-2">WINDOW</div>
                   <div className="text-3xl font-bold text-purple-400">{activeMove.maxFrames}F</div>
@@ -709,6 +686,30 @@ const TekkenInputTrainer = () => {
                 <div>
                   <div className="text-xs font-bold text-gray-500 mb-2">DAMAGE</div>
                   <div className="text-lg font-bold text-white">{activeMove.damage}</div>
+                </div>
+              </div>
+
+              <div className="bg-[#0b0c10] border border-[#1A1A24] rounded-xl p-8 mt-4">
+                <div className="text-xs font-bold tracking-wider text-gray-500 mb-6">DRILL</div>
+                
+                <div className="flex items-center gap-4 mb-8">
+                  {renderDrillSequence(activeMove)}
+                </div>
+
+                <div className="text-xs text-gray-600 font-mono">
+                  WASD - directions · U I J K - buttons 1 2 3 4
+                </div>
+
+                {/* Status Indicator */}
+                <div className="mt-8 flex justify-between items-center">
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm text-gray-500">Streak: <span className="text-white font-bold">{streak}</span></span>
+                    {lastPerfect && <span className="text-xs font-bold text-yellow-400 animate-pulse bg-yellow-400/10 px-2 py-1 rounded">PERFECT!</span>}
+                    {detectedMove && !lastPerfect && <span className="text-xs font-bold text-green-400 bg-green-400/10 px-2 py-1 rounded">SUCCESS</span>}
+                  </div>
+                  {bestTimes[detectionMode] && (
+                    <span className="text-sm text-gray-500">Best Time: <span className="text-green-400 font-bold">{bestTimes[detectionMode]}F</span></span>
+                  )}
                 </div>
               </div>
 
