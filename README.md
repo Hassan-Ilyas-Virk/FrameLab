@@ -1,70 +1,62 @@
-# Getting Started with Create React App
+# Tekken Input Trainer - AI Prompt Template
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+This document contains a comprehensive prompt that you can copy and paste into an AI (like ChatGPT, Claude, or Gemini) to have it develop the **Tekken Input Trainer** project for you. 
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## 🤖 Copy and Paste the Prompt Below:
 
-### `npm start`
+**System Role / Context:**
+You are an expert Full-Stack Developer and UI/UX Designer with a deep understanding of fighting games, specifically the *Tekken* series. Your task is to build a modern, responsive web application called "Tekken Input Trainer." 
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+**Tech Stack:**
+- **Frontend:** React.js (or Next.js)
+- **Styling:** Tailwind CSS (for a sleek, dark-mode, arcade-inspired UI)
+- **State Management:** React Context or Redux (for handling input streams and frame data states)
+- **Game Inputs:** HTML5 Gamepad API (for fight sticks/controllers) and standard Keyboard Event Listeners
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+**Core Objective:**
+Build an interactive training tool that helps Tekken players practice execution, react to specific scenarios, and learn frame data. The app should listen to inputs and translate them into standard Tekken notation in real-time.
 
-### `npm test`
+**Key Features to Implement:**
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+1. **Real-Time Input Visualizer & Logger:**
+   - Listen to keyboard or Gamepad API inputs.
+   - Map standard controls to Tekken notation: directional inputs (`u`, `d`, `f`, `b`, `uf`, `db`, etc.) and attack buttons (`1`=LP, `2`=RP, `3`=LK, `4`=RK).
+   - Display a scrolling "command history" identical to the in-game practice mode.
+   - Support detection for complex inputs like `qcf` (quarter-circle forward), `EWGF` (Electric Wind God Fist - `f,n,d,df+2`), and simultaneous button presses (e.g., `1+2`).
 
-### `npm run build`
+2. **Frame Data Library:**
+   - Create a structured JSON database for character move lists.
+   - For each move, include: `Command`, `Hit Level` (High/Mid/Low), `Damage`, `Startup Frames`, `Block Advantage`, `Hit Advantage`, and `Counter Hit Advantage`.
+   - Build a searchable UI component to display this frame data nicely.
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+3. **Punishment Trainer Mode:**
+   - The app displays an opponent's move that is unsafe on block (e.g., -15 frames).
+   - The user must input the correct optimal punish for their selected character within a strict timing window.
+   - Provide visual/audio feedback: "Success", "Too Slow", or "Wrong Input".
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+4. **Reaction & Throw Break Trainer Mode:**
+   - Visual cues appear on screen simulating attacks (e.g., an icon for a `1+2` throw, or a low sweep).
+   - The user must input the correct defensive response (e.g., pressing `1+2` to break the throw, or holding `db` to block the low) within the correct startup frame window (e.g., 20 frames).
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+5. **Combo Trial / Execution Mode:**
+   - Allow users to select or create a custom predefined combo.
+   - The screen displays the required inputs.
+   - The app tracks the user's inputs and validates if the combo was executed correctly, calculating the frame gaps between button presses to ensure it's a true combo.
 
-### `npm run eject`
+**Design & UI Requirements:**
+- **Aesthetic:** Dark mode by default, vibrant neon accents (arcade vibes), highly legible typography for move inputs and frame data.
+- **Layout:** 
+  - Sidebar/Navbar for navigation (Modes: Input Logger, Punishment Trainer, Frame Data, Settings).
+  - Main central area for the active training mode.
+  - Bottom horizontal bar for the live input command history.
+- **Responsive:** Ensure the UI works well on desktop (for training) and mobile (for reviewing frame data on the go).
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+**Initial Tasks for You (The AI):**
+1. Generate the initial project structure and necessary configuration files.
+2. Create the mock JSON structure for the frame data (give me an example with 2 characters, like Kazuya and Paul).
+3. Write the core React hook (`useInputHandling.js`) that captures keyboard/gamepad events and translates them into Tekken notation.
+4. Provide the code for the main Dashboard UI integrating the live input logger.
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Please provide the code in clear, modular blocks, starting with the setup and core logic.

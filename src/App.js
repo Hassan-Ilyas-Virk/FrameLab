@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Settings, Play, RotateCcw } from 'lucide-react';
+import { Settings, Play, RotateCcw, Search, Info } from 'lucide-react';
 
 const TekkenInputTrainer = () => {
   const [inputHistory, setInputHistory] = useState([]);
@@ -8,7 +8,10 @@ const TekkenInputTrainer = () => {
   const [streak, setStreak] = useState(0);
   const [bestTimes, setBestTimes] = useState({});
   const [showSettings, setShowSettings] = useState(false);
-  const [detectionMode, setDetectionMode] = useState('auto'); // 'auto' or specific move key
+  const [detectionMode, setDetectionMode] = useState('ewgf'); // Default to ewgf
+  const [filterType, setFilterType] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  
   const [keyBinds, setKeyBinds] = useState({
     up: 'w',
     down: 's',
@@ -37,63 +40,126 @@ const TekkenInputTrainer = () => {
       name: 'EWGF',
       input: ['f', 'n', 'd', 'df', '2'],
       maxFrames: 13,
+      description: 'Electric Wind God Fist',
+      startup: 'i14',
+      onBlock: '+8',
+      onHit: '+22',
+      damage: 25,
+      characters: ['Kazuya', 'Devil Jin', 'Heihachi'],
+      type: 'attacks',
       color: 'yellow'
     },
+    pewgf: {
+      name: 'PERFECT EWGF',
+      input: ['f', 'n', 'd', 'df', '2'],
+      maxFrames: 11,
+      description: 'Just-frame Electric — 1F window',
+      startup: 'i13',
+      onBlock: '+5',
+      onHit: 'Launch',
+      damage: 25,
+      characters: ['Kazuya'],
+      type: 'just-frame',
+      color: 'green'
+    },
     wavedash: {
-      name: 'Wavedash',
+      name: 'WAVEDASH',
       input: ['f', 'n', 'd', 'df'],
       maxFrames: 15,
+      description: 'Korean Backdash Cancel forward',
+      startup: '--',
+      onBlock: '--',
+      onHit: '--',
+      damage: 0,
+      characters: ['Mishimas', 'Armor King', 'Bob'],
+      type: 'movement',
       color: 'blue'
     },
     hellsweep: {
-      name: 'Hellsweep',
+      name: 'HELLSWEEP',
       input: ['f', 'n', 'd', 'df', '4'],
       maxFrames: 16,
+      description: 'Mishima low sweep',
+      startup: 'i16',
+      onBlock: '-23',
+      onHit: 'KND',
+      damage: 32,
+      characters: ['Kazuya', 'Devil Jin'],
+      type: 'attacks',
       color: 'red'
     },
     kbd: {
       name: 'KBD',
-      input: ['b', 'b', 'db', 'b'],
+      input: ['b', 'n', 'b', 'db', 'b'],
       maxFrames: 12,
+      description: 'Korean Backdash',
+      startup: '--',
+      onBlock: '--',
+      onHit: '--',
+      damage: 0,
+      characters: ['All'],
+      type: 'movement',
       color: 'purple'
     },
-    pewgf: {
-      name: 'Perfect EWGF',
-      input: ['f', 'n', 'd', 'df', '2'],
-      maxFrames: 11,
-      color: 'green'
+    run: {
+      name: 'RUN',
+      input: ['f', 'n', 'f', 'n', 'f'],
+      maxFrames: 20,
+      description: 'Forward run',
+      startup: '--',
+      onBlock: '--',
+      onHit: '--',
+      damage: 0,
+      characters: ['All'],
+      type: 'movement',
+      color: 'gray'
     },
-    dragon_uppercut: {
-      name: 'Dragon Uppercut',
-      input: ['f', 'n', 'd', 'df', '1'],
-      maxFrames: 14,
+    command_throw: {
+      name: 'COMMAND THROW',
+      input: ['f', '1+2'],
+      maxFrames: 10,
+      description: 'Forward command grab',
+      startup: 'i11',
+      onBlock: '--',
+      onHit: 'Throw',
+      damage: 40,
+      characters: ['All'],
+      type: 'attacks',
       color: 'orange'
     },
-    spinning_demon: {
-      name: 'Spinning Demon',
-      input: ['f', 'n', 'd', 'df', '3'],
+    backdash: {
+      name: 'BACKDASH',
+      input: ['b', 'n', 'b'],
       maxFrames: 15,
-      color: 'pink'
+      description: 'Quick back dash',
+      startup: '--',
+      onBlock: '--',
+      onHit: '--',
+      damage: 0,
+      characters: ['All'],
+      type: 'movement',
+      color: 'gray'
     },
-    double_wavedash: {
-      name: 'Double Wavedash',
-      input: ['f', 'n', 'd', 'df', 'f', 'n', 'd', 'df'],
-      maxFrames: 25,
-      color: 'cyan'
+    sidestep_left: {
+      name: 'SIDESTEP L',
+      input: ['u'],
+      maxFrames: 5,
+      description: 'Step into background',
+      startup: '--',
+      onBlock: '--',
+      onHit: '--',
+      damage: 0,
+      characters: ['All'],
+      type: 'movement',
+      color: 'gray'
     }
   };
 
   const notationMap = {
     'f': '→', 'b': '←', 'u': '↑', 'd': '↓',
     'df': '↘', 'db': '↙', 'uf': '↗', 'ub': '↖',
-    'n': 'N', '1': '①', '2': '②', '3': '③', '4': '④',
-    'd+2': '↓+②', 'df+2': '↘+②', 'd+1': '↓+①', 'df+1': '↘+①',
-    'f+2': '→+②', 'b+2': '←+②', 'u+2': '↑+②',
-    'd+3': '↓+③', 'df+3': '↘+③', 'd+4': '↓+④', 'df+4': '↘+④',
-    'f+3': '→+③', 'b+3': '←+③', 'u+3': '↑+③',
-    'f+4': '→+④', 'b+4': '←+④', 'u+4': '↑+④',
-    'f+1': '→+①', 'b+1': '←+①', 'u+1': '↑+①',
-    'uf+2': '↗+②', 'ub+2': '↖+②', 'db+2': '↙+②'
+    'n': '★', '1': '1', '2': '2', '3': '3', '4': '4',
+    '1+2': '1+2'
   };
 
   const getCurrentDirection = () => {
@@ -117,153 +183,87 @@ const TekkenInputTrainer = () => {
   const checkMoves = (now, input) => {
     const buffer = inputBuffer.current;
     
-    // Clean buffer for move detection (remove quick neutrals, split combos)
     const cleanedBuffer = [];
     for (let i = 0; i < buffer.length; i++) {
       const current = buffer[i];
       
       if (current.includes('+')) {
         const parts = current.split('+');
-        cleanedBuffer.push(parts[0]);
-        cleanedBuffer.push(parts[1]);
+        const first = parts[0];
+        if (['f', 'b', 'u', 'd', 'df', 'db', 'uf', 'ub'].includes(first)) {
+          if (cleanedBuffer.length === 0 || cleanedBuffer[cleanedBuffer.length - 1] !== first) {
+            cleanedBuffer.push(first);
+          }
+          const rest = parts.slice(1).join('+');
+          if (rest) {
+            if (cleanedBuffer.length === 0 || cleanedBuffer[cleanedBuffer.length - 1] !== rest) {
+              cleanedBuffer.push(rest);
+            }
+          }
+        } else {
+          if (cleanedBuffer.length === 0 || cleanedBuffer[cleanedBuffer.length - 1] !== current) {
+            cleanedBuffer.push(current);
+          }
+        }
         continue;
       }
       
-      if (current === 'n') {
-        const prev = cleanedBuffer[cleanedBuffer.length - 1];
-        const next = buffer[i + 1];
-        
-        if (next && next.includes('+')) {
-          const nextDir = next.split('+')[0];
-          if (prev === nextDir) continue;
-        } else if (prev && next && prev === next && ['f', 'b', 'u', 'd'].includes(prev)) {
-          continue;
-        }
+      if (cleanedBuffer.length === 0 || cleanedBuffer[cleanedBuffer.length - 1] !== current) {
+        cleanedBuffer.push(current);
       }
-      
-      cleanedBuffer.push(current);
     }
 
-    console.log('🔍 checkMoves called:', {
-      mode: detectionMode,
-      buffer,
-      cleanedBuffer,
-      currentProgress
-    });
-
-    // ========== SPECIFIC MODE: ONLY CHECK SELECTED MOVE ==========
     if (detectionMode !== 'auto') {
       const targetMove = moves[detectionMode];
+      if (!targetMove) return;
       const required = targetMove.input;
       
-      console.log('📋 Target move:', targetMove.name, 'Required:', required);
-      
-      // Sequential matching: count consecutive matches from the start
       let matchCount = 0;
-      for (let i = 0; i < cleanedBuffer.length && i < required.length; i++) {
-        if (cleanedBuffer[i] === required[i]) {
-          matchCount++;
-        } else {
-          // Mismatch found - break streak immediately
-          console.log('❌ Mismatch at position', i, '- got', cleanedBuffer[i], 'expected', required[i]);
-          setStreak(0);
-          setCurrentProgress(0);
-          inputBuffer.current = [];
-          moveStartTime.current = null;
-          return;
+      for (let k = Math.min(cleanedBuffer.length, required.length); k > 0; k--) {
+        const suffix = cleanedBuffer.slice(-k);
+        let match = true;
+        for (let i = 0; i < k; i++) {
+          if (suffix[i] !== required[i]) {
+            match = false;
+            break;
+          }
+        }
+        if (match) {
+          matchCount = k;
+          break;
         }
       }
       
-      console.log('✅ Match count:', matchCount, 'out of', required.length);
-      
-      // Update progress with consecutive matches
       setCurrentProgress(matchCount);
       
-      // If buffer is longer than required, it's wrong
-      if (cleanedBuffer.length > required.length) {
+      if (matchCount === 1) {
+        moveStartTime.current = now;
+      } else if (matchCount === 0) {
         setStreak(0);
-        setCurrentProgress(0);
-        inputBuffer.current = [];
-        moveStartTime.current = null;
-        return;
       }
       
-      // ONLY detect if buffer exactly matches required length
-      if (cleanedBuffer.length === required.length) {
-        const matches = cleanedBuffer.every((inp, idx) => inp === required[idx]);
-        
-        if (matches) {
-          const executionTime = now - moveStartTime.current;
-          const frames = Math.round(executionTime / 16.67);
-          
-          const isPerfect = frames <= targetMove.maxFrames;
-          
-          setDetectedMove({ ...targetMove, frames, isPerfect });
-          setLastPerfect(isPerfect);
-          
-          // Flash success animation
-          if (isPerfect) {
-            setFlashSuccess(true);
-            setTimeout(() => setFlashSuccess(false), 500);
-          }
-          
-          if (isPerfect) {
-            setStreak(prev => prev + 1);
-            setBestTimes(prev => ({
-              ...prev,
-              [detectionMode]: !bestTimes[detectionMode] || frames < bestTimes[detectionMode] ? frames : bestTimes[detectionMode]
-            }));
-          } else {
-            setStreak(prev => prev + 1);
-          }
-          
-          // Clear buffer and reset timer
-          inputBuffer.current = [];
-          moveStartTime.current = null;
-          setCurrentProgress(0);
-          
-          setTimeout(() => {
-            setLastPerfect(false);
-            setDetectedMove(null);
-          }, 2000);
-        }
-      }
-      
-      // Exit early - never check other moves in specific mode
-      return;
-    }
-    
-    // Auto mode: check all moves with sliding window
-    const movesToCheck = Object.entries(moves);
-
-    for (const [moveKey, move] of movesToCheck) {
-      const required = move.input;
-      
-      if (cleanedBuffer.length < required.length) continue;
-
-      const recent = cleanedBuffer.slice(-required.length);
-      const matches = recent.every((inp, idx) => inp === required[idx]);
-      
-      if (matches) {
+      if (matchCount === required.length) {
         const executionTime = now - moveStartTime.current;
         const frames = Math.round(executionTime / 16.67);
         
-        const isPerfect = frames <= move.maxFrames;
+        const isPerfect = frames <= targetMove.maxFrames;
         
-        setDetectedMove({ ...move, frames, isPerfect });
+        setDetectedMove({ ...targetMove, frames, isPerfect });
         setLastPerfect(isPerfect);
         
+        setFlashSuccess(true);
+        setTimeout(() => setFlashSuccess(false), 500);
+
         if (isPerfect) {
           setStreak(prev => prev + 1);
           setBestTimes(prev => ({
             ...prev,
-            [moveKey]: !bestTimes[moveKey] || frames < bestTimes[moveKey] ? frames : bestTimes[moveKey]
+            [detectionMode]: !bestTimes[detectionMode] || frames < bestTimes[detectionMode] ? frames : bestTimes[detectionMode]
           }));
         } else {
           setStreak(prev => prev + 1);
         }
         
-        // Clear buffer and reset timer
         inputBuffer.current = [];
         moveStartTime.current = null;
         setCurrentProgress(0);
@@ -272,105 +272,92 @@ const TekkenInputTrainer = () => {
           setLastPerfect(false);
           setDetectedMove(null);
         }, 2000);
-        
-        break;
       }
     }
   };
 
   const addInputToHistory = (input, now) => {
-    console.log('📥 addInputToHistory called:', input, 'at', now);
-    
-    // Add to history with timestamp
     setInputHistory(prev => {
       const newHistory = [...prev, { input, time: now }];
-      return newHistory.slice(-15);
+      return newHistory.slice(-50); // Keep more history for sidebar
     });
     
-    // Add to buffer for move detection
     if (inputBuffer.current.length === 0) {
       moveStartTime.current = now;
     }
     
     inputBuffer.current.push(input);
-    console.log('📦 Buffer now:', inputBuffer.current);
     checkMoves(now, input);
   };
 
   const processCurrentState = (now, isButtonPress = false) => {
-    // Clear any pending debounce timer
     if (directionDebounceTimer.current) {
       clearTimeout(directionDebounceTimer.current);
       directionDebounceTimer.current = null;
     }
     
-    // For button presses, process immediately
     if (isButtonPress) {
       const currentDirection = getCurrentDirection();
       const currentButtons = Array.from(pressedButtons.current).sort();
       
       lastInputTime.current = now;
       
-      // Handle direction + buttons combination
       if (currentDirection && currentButtons.length > 0) {
-        const combo = `${currentDirection}+${currentButtons[0]}`;
+        // Special case for combinations like 1+2
+        const buttonsStr = currentButtons.join('+');
+        const combo = `${currentDirection}+${buttonsStr}`;
         addInputToHistory(combo, now);
         lastState.current = { direction: currentDirection, buttons: currentButtons };
         return;
       }
-      // Handle buttons only
       else if (currentButtons.length > 0) {
-        addInputToHistory(currentButtons[0], now);
+        const buttonsStr = currentButtons.join('+');
+        addInputToHistory(buttonsStr, now);
         lastState.current = { direction: currentDirection, buttons: currentButtons };
         return;
       }
     }
     
-    // For directional inputs, add a small debounce to stabilize diagonal inputs
     directionDebounceTimer.current = setTimeout(() => {
-    const currentDirection = getCurrentDirection();
-    const currentButtons = Array.from(pressedButtons.current).sort();
-    
-    const directionChanged = currentDirection !== lastState.current.direction;
-    const buttonsChanged = JSON.stringify(currentButtons) !== JSON.stringify(lastState.current.buttons);
-    
-    if (!directionChanged && !buttonsChanged) return;
-    
+      const currentDirection = getCurrentDirection();
+      const currentButtons = Array.from(pressedButtons.current).sort();
+      
+      const directionChanged = currentDirection !== lastState.current.direction;
+      const buttonsChanged = JSON.stringify(currentButtons) !== JSON.stringify(lastState.current.buttons);
+      
+      if (!directionChanged && !buttonsChanged) return;
+      
       lastInputTime.current = Date.now();
-    
-    let inputToAdd = null;
-    
-    // Handle direction + buttons combination
-    if (currentDirection && currentButtons.length > 0) {
-      const combo = `${currentDirection}+${currentButtons[0]}`;
-      inputToAdd = combo;
-    }
-    // Handle direction only
-    else if (currentDirection) {
-      inputToAdd = currentDirection;
-    }
-    // Handle neutral
-    else if (!currentDirection && currentButtons.length === 0 && lastState.current.direction !== null) {
-      inputToAdd = 'n';
-    }
-    
-    if (inputToAdd) {
+      
+      let inputToAdd = null;
+      
+      if (currentDirection && currentButtons.length > 0) {
+        const buttonsStr = currentButtons.join('+');
+        const combo = `${currentDirection}+${buttonsStr}`;
+        inputToAdd = combo;
+      }
+      else if (currentDirection) {
+        inputToAdd = currentDirection;
+      }
+      else if (!currentDirection && currentButtons.length === 0 && lastState.current.direction !== null) {
+        inputToAdd = 'n';
+      }
+      
+      if (inputToAdd) {
         addInputToHistory(inputToAdd, Date.now());
-    }
-    
-    lastState.current = { direction: currentDirection, buttons: currentButtons };
-    }, 16); // 16ms debounce (about 1 frame)
+      }
+      
+      lastState.current = { direction: currentDirection, buttons: currentButtons };
+    }, 16); 
   };
 
-  // 0.5-second timeout to break streak and clear buffer on inactivity
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
       const timeSinceLastInput = now - lastInputTime.current;
       
-      // If 0.5 seconds have passed since last input, clear buffer and break streak
       if (timeSinceLastInput > 500) {
-        if (streak > 0) {
+        if (streak > 0 && !flashSuccess && !detectedMove) {
           setStreak(0);
         }
         if (inputBuffer.current.length > 0) {
@@ -379,10 +366,10 @@ const TekkenInputTrainer = () => {
           setCurrentProgress(0);
         }
       }
-    }, 100); // Check every 100ms
+    }, 100);
     
     return () => clearInterval(interval);
-  }, [streak]);
+  }, [streak, flashSuccess, detectedMove]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -400,8 +387,6 @@ const TekkenInputTrainer = () => {
       const now = Date.now();
       const timeSinceLastInput = now - lastInputTime.current;
       
-      console.log('⌨️ Key pressed:', key, 'Mode:', detectionMode);
-      
       if (timeSinceLastInput > 800) {
         inputBuffer.current = [];
         moveStartTime.current = null;
@@ -412,44 +397,23 @@ const TekkenInputTrainer = () => {
 
       const directionalKeys = [keyBinds.up, keyBinds.down, keyBinds.left, keyBinds.right];
       if (directionalKeys.includes(key)) {
-        console.log('🎮 Directional key detected:', key);
         e.preventDefault();
         if (!pressedDirections.current.has(key)) {
           pressedDirections.current.add(key);
           wasPressed = true;
         }
       }
-      else if (key === keyBinds.btn1) {
-        e.preventDefault();
-        if (!pressedButtons.current.has('1')) {
-          pressedButtons.current.add('1');
-          wasPressed = true;
-          isButton = true;
-        }
+      else if (key === keyBinds.btn1 && !pressedButtons.current.has('1')) {
+        e.preventDefault(); pressedButtons.current.add('1'); wasPressed = true; isButton = true;
       }
-      else if (key === keyBinds.btn2) {
-        e.preventDefault();
-        if (!pressedButtons.current.has('2')) {
-          pressedButtons.current.add('2');
-          wasPressed = true;
-          isButton = true;
-        }
+      else if (key === keyBinds.btn2 && !pressedButtons.current.has('2')) {
+        e.preventDefault(); pressedButtons.current.add('2'); wasPressed = true; isButton = true;
       }
-      else if (key === keyBinds.btn3) {
-        e.preventDefault();
-        if (!pressedButtons.current.has('3')) {
-          pressedButtons.current.add('3');
-          wasPressed = true;
-          isButton = true;
-        }
+      else if (key === keyBinds.btn3 && !pressedButtons.current.has('3')) {
+        e.preventDefault(); pressedButtons.current.add('3'); wasPressed = true; isButton = true;
       }
-      else if (key === keyBinds.btn4) {
-        e.preventDefault();
-        if (!pressedButtons.current.has('4')) {
-          pressedButtons.current.add('4');
-          wasPressed = true;
-          isButton = true;
-        }
+      else if (key === keyBinds.btn4 && !pressedButtons.current.has('4')) {
+        e.preventDefault(); pressedButtons.current.add('4'); wasPressed = true; isButton = true;
       }
 
       if (wasPressed) {
@@ -472,24 +436,16 @@ const TekkenInputTrainer = () => {
         }
       }
       else if (key === keyBinds.btn1 && pressedButtons.current.has('1')) {
-        e.preventDefault();
-        pressedButtons.current.delete('1');
-        wasReleased = true;
+        e.preventDefault(); pressedButtons.current.delete('1'); wasReleased = true;
       }
       else if (key === keyBinds.btn2 && pressedButtons.current.has('2')) {
-        e.preventDefault();
-        pressedButtons.current.delete('2');
-        wasReleased = true;
+        e.preventDefault(); pressedButtons.current.delete('2'); wasReleased = true;
       }
       else if (key === keyBinds.btn3 && pressedButtons.current.has('3')) {
-        e.preventDefault();
-        pressedButtons.current.delete('3');
-        wasReleased = true;
+        e.preventDefault(); pressedButtons.current.delete('3'); wasReleased = true;
       }
       else if (key === keyBinds.btn4 && pressedButtons.current.has('4')) {
-        e.preventDefault();
-        pressedButtons.current.delete('4');
-        wasReleased = true;
+        e.preventDefault(); pressedButtons.current.delete('4'); wasReleased = true;
       }
 
       if (wasReleased) {
@@ -507,34 +463,8 @@ const TekkenInputTrainer = () => {
         clearTimeout(directionDebounceTimer.current);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyBinds, editingKey]);
 
-  const resetSession = () => {
-    setInputHistory([]);
-    setStreak(0);
-    setBestTimes({});
-    setDetectedMove(null);
-    setLastPerfect(false);
-    setCurrentProgress(0);
-    setFlashSuccess(false);
-    inputBuffer.current = [];
-    moveStartTime.current = null;
-    sessionStartTime.current = Date.now();
-    pressedDirections.current.clear();
-    pressedButtons.current.clear();
-    lastState.current = { direction: null, buttons: [] };
-    if (directionDebounceTimer.current) {
-      clearTimeout(directionDebounceTimer.current);
-      directionDebounceTimer.current = null;
-    }
-  };
-
-  const startRebind = (keyName) => {
-    setEditingKey(keyName);
-  };
-
-  // Reset progress when switching detection modes
   useEffect(() => {
     setCurrentProgress(0);
     setDetectedMove(null);
@@ -548,50 +478,281 @@ const TekkenInputTrainer = () => {
     }
   }, [detectionMode]);
 
+  const renderDrillSequence = (move) => {
+    return move.input.map((inp, idx) => {
+      const isActive = idx < currentProgress;
+      const isButton = ['1','2','3','4','1+2'].some(b => inp.includes(b));
+      
+      if (isButton) {
+        // Render combination of direction + button if any
+        let dir = '';
+        let btn = inp;
+        if (inp.includes('+') && ['f','b','u','d','df','db','uf','ub'].includes(inp.split('+')[0])) {
+           dir = inp.split('+')[0];
+           btn = inp.split('+')[1];
+        }
+
+        return (
+          <React.Fragment key={idx}>
+            <div className="flex items-center gap-3">
+              {dir && (
+                 <div className={`w-20 h-20 flex items-center justify-center rounded-xl border-2 text-4xl font-bold transition-all duration-300
+                  ${isActive ? 'border-purple-500 text-purple-400 bg-purple-900/30 shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'border-[#2d2d3f] text-gray-400 bg-[#13131A]'}
+                `}>
+                  {notationMap[dir] || dir}
+                </div>
+              )}
+              {dir && <span className="text-gray-600 text-sm font-bold">+</span>}
+              <div className={`w-20 h-20 rounded-full flex items-center justify-center text-4xl font-bold transition-all duration-300
+                ${isActive || flashSuccess ? 'bg-yellow-400 text-black shadow-[0_0_25px_rgba(250,204,21,0.6)] scale-110' : 'bg-gray-700 text-gray-400'}
+              `}>
+                {notationMap[btn] || btn}
+              </div>
+            </div>
+          </React.Fragment>
+        );
+      }
+
+      return (
+        <React.Fragment key={idx}>
+          <div className={`w-20 h-20 flex items-center justify-center rounded-xl border-2 text-4xl font-bold transition-all duration-300
+            ${isActive ? 'border-purple-500 text-purple-400 bg-purple-900/30 shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'border-[#2d2d3f] text-gray-400 bg-[#13131A]'}
+          `}>
+            {notationMap[inp] || inp}
+          </div>
+        </React.Fragment>
+      );
+    });
+  };
+
+  const renderMiniIcons = (inputArray) => {
+    return (
+      <div className="flex items-center gap-1">
+        {inputArray.map((inp, i) => {
+          const isBtn = ['1','2','3','4','1+2'].some(b => inp.includes(b));
+          if (isBtn) {
+            let dir = '';
+            let btn = inp;
+            if (inp.includes('+') && ['f','b','u','d','df','db','uf','ub'].includes(inp.split('+')[0])) {
+               dir = inp.split('+')[0];
+               btn = inp.split('+')[1];
+            }
+            return (
+              <div key={i} className="flex items-center gap-1">
+                {dir && <span className="w-5 h-5 flex items-center justify-center bg-[#1F1F2E] rounded border border-[#2D2D3F] text-[10px] text-gray-400">{notationMap[dir]}</span>}
+                {dir && <span className="text-gray-600 text-[10px]">+</span>}
+                <span className="w-5 h-5 flex items-center justify-center bg-yellow-400 text-black rounded-full font-bold text-[10px]">{notationMap[btn] || btn}</span>
+              </div>
+            );
+          }
+          return (
+            <span key={i} className="w-5 h-5 flex items-center justify-center bg-[#1F1F2E] rounded border border-[#2D2D3F] text-[10px] text-gray-400">
+              {notationMap[inp] || inp}
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const filteredMoves = Object.entries(moves).filter(([key, move]) => {
+    if (filterType !== 'all' && move.type !== filterType) return false;
+    if (searchQuery && !move.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    return true;
+  });
+
+  const activeMove = moves[detectionMode];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
-      <div className="max-w-7xl mx-auto flex gap-4">
-        {/* Left Sidebar - Input History */}
-        <div className="w-80 bg-slate-800 rounded-lg border-2 border-cyan-500 p-4 flex flex-col h-screen sticky top-4">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-white">Input History</h2>
-            <button
-              onClick={resetSession}
-              className="bg-red-600 hover:bg-red-700 p-2 rounded transition"
-              title="Reset Session"
-            >
-              <RotateCcw className="text-white" size={20} />
+    <div className="h-screen w-screen overflow-hidden bg-[#0d0d12] text-gray-200 font-sans flex flex-col">
+      {/* Navbar */}
+      <header className="h-16 border-b border-[#1A1A24] flex items-center justify-between px-6 bg-[#0d0d12] shrink-0">
+        <div className="flex items-center gap-8">
+          <div className="text-xl font-bold tracking-wider text-white">
+            FRAME<span className="text-purple-500">LAB</span>
+          </div>
+          <nav className="flex items-center gap-2">
+            <button className="px-4 py-2 text-sm text-gray-500 hover:text-gray-300 transition">practice</button>
+            <button className="px-4 py-2 text-sm bg-[#1A1A24] text-gray-200 rounded-md">movedex</button>
+            <button className="px-4 py-2 text-sm text-gray-500 hover:text-gray-300 transition">test runner</button>
+            <button className="px-4 py-2 text-sm text-gray-500 hover:text-gray-300 transition">settings</button>
+          </nav>
+        </div>
+        <div className="flex items-center gap-6 text-sm text-gray-500">
+          <div>session <span className="text-purple-400">--:--</span></div>
+          <div><span className="text-gray-300">{inputHistory.length}</span> inputs</div>
+          <div className="flex items-center gap-2 bg-[#1A1A24] px-3 py-1 rounded-full text-xs">
+            <div className="w-2 h-2 rounded-full bg-gray-600"></div> no gamepad
+          </div>
+          <Info size={16} className="text-gray-500" />
+        </div>
+      </header>
+
+      {/* Main Content Area */}
+      <div className="flex flex-1 overflow-hidden">
+        
+        {/* Left Sidebar - MOVEDEX */}
+        <div className="w-[320px] flex flex-col border-r border-[#1A1A24] bg-[#0d0d12]">
+          <div className="p-4 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold tracking-wider text-gray-500">MOVEDEX - {Object.keys(moves).length} MOVES</span>
+              <div className="flex text-xs bg-[#1A1A24] rounded-md p-1">
+                {['all', 'just-frame', 'movement', 'attacks'].map(type => (
+                  <button
+                    key={type}
+                    onClick={() => setFilterType(type)}
+                    className={`px-2 py-1 rounded ${filterType === type ? 'bg-[#2D2D3F] text-gray-200' : 'text-gray-500 hover:text-gray-300'}`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <input 
+                type="text" 
+                placeholder="search moves.." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-[#13131A] border border-[#1F1F2E] rounded-md py-2 pl-9 pr-3 text-sm text-gray-200 focus:outline-none focus:border-purple-500 transition"
+              />
+            </div>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto">
+            {filteredMoves.map(([key, move]) => (
+              <button
+                key={key}
+                onClick={() => setDetectionMode(key)}
+                className={`w-full text-left p-4 border-b border-[#1A1A24] transition flex flex-col gap-2 hover:bg-[#1A1625] ${detectionMode === key ? 'bg-[#1A1625] border-l-2 border-l-purple-500' : 'border-l-2 border-l-transparent'}`}
+              >
+                <div className="flex justify-between items-center">
+                  <span className={`font-bold uppercase ${detectionMode === key ? 'text-purple-400' : 'text-gray-200'}`}>{move.name}</span>
+                  <span className="text-[10px] bg-[#1A1A24] px-2 py-0.5 rounded border border-[#2D2D3F] text-gray-400 font-mono">{move.maxFrames}F window</span>
+                </div>
+                {renderMiniIcons(move.input)}
+                <span className="text-xs text-gray-500">{move.description}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Center Content - MOVE DETAIL */}
+        <div className="flex-1 overflow-y-auto p-8 bg-[#0d0d12]">
+          {activeMove ? (
+            <div className="max-w-4xl mx-auto flex flex-col gap-8">
+              <div className="flex justify-between items-start">
+                <span className="text-xs font-bold tracking-wider text-gray-500 uppercase">MOVE DETAIL</span>
+                <button className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-md text-sm font-semibold transition">
+                  drill this move
+                </button>
+              </div>
+
+              <div>
+                <h1 className="text-6xl font-black tracking-tight mb-2 uppercase text-white font-['Oswald',sans-serif]">{activeMove.name}</h1>
+                <p className="text-gray-400 text-lg">{activeMove.description}</p>
+              </div>
+
+              <div className={`rounded-xl p-8 mb-4 border-2 transition-all duration-300 ${flashSuccess ? 'bg-yellow-500/40 border-yellow-400 ring-4 ring-yellow-400 shadow-[0_0_60px_rgba(250,204,21,0.6)] scale-[1.05]' : 'bg-[#0b0c10] border-[#1A1A24]'}`}>
+                <div className={`text-xs font-bold tracking-wider mb-8 text-center ${flashSuccess ? 'text-yellow-400' : 'text-gray-500'}`}>DRILL</div>
+                
+                <div className="flex justify-center items-center gap-6">
+                  {renderDrillSequence(activeMove)}
+                </div>
+              </div>
+
+              <div className="text-xs text-gray-600 font-mono mb-4">
+                WASD - directions · U I J K - buttons 1 2 3 4
+              </div>
+
+              {/* Status Indicator */}
+              <div className="flex justify-between items-center mb-8">
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-gray-500">Streak: <span className="text-white font-bold">{streak}</span></span>
+                  {lastPerfect && <span className="text-xs font-bold text-yellow-400 animate-pulse bg-yellow-400/10 px-2 py-1 rounded">PERFECT!</span>}
+                  {detectedMove && !lastPerfect && <span className="text-xs font-bold text-green-400 bg-green-400/10 px-2 py-1 rounded">SUCCESS</span>}
+                </div>
+                {bestTimes[detectionMode] && (
+                  <span className="text-sm text-gray-500">Best Time: <span className="text-green-400 font-bold">{bestTimes[detectionMode]}F</span></span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-4 gap-4 mt-2">
+                <div className="bg-[#13131A] border border-[#1A1A24] rounded-lg p-5">
+                  <div className="text-xs font-bold text-gray-500 mb-2">WINDOW</div>
+                  <div className="text-3xl font-bold text-purple-400">{activeMove.maxFrames}F</div>
+                </div>
+                <div className="bg-[#13131A] border border-[#1A1A24] rounded-lg p-5">
+                  <div className="text-xs font-bold text-gray-500 mb-2">STARTUP</div>
+                  <div className="text-3xl font-bold text-white">{activeMove.startup}</div>
+                </div>
+                <div className="bg-[#13131A] border border-[#1A1A24] rounded-lg p-5">
+                  <div className="text-xs font-bold text-gray-500 mb-2">ON BLOCK</div>
+                  <div className="text-3xl font-bold text-white">{activeMove.onBlock}</div>
+                </div>
+                <div className="bg-[#13131A] border border-[#1A1A24] rounded-lg p-5">
+                  <div className="text-xs font-bold text-gray-500 mb-2">ON HIT</div>
+                  <div className="text-3xl font-bold text-white">{activeMove.onHit}</div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-8 py-2">
+                <div>
+                  <div className="text-xs font-bold text-gray-500 mb-2">CHARACTERS</div>
+                  <div className="flex gap-2">
+                    {activeMove.characters.map(char => (
+                      <span key={char} className="px-3 py-1 bg-purple-900/10 border border-purple-500/30 text-purple-400 rounded-md text-xs">{char}</span>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-gray-500 mb-2">DAMAGE</div>
+                  <div className="text-lg font-bold text-white">{activeMove.damage}</div>
+                </div>
+              </div>
+
+            </div>
+          ) : (
+            <div className="flex h-full items-center justify-center text-gray-600">Select a move to drill</div>
+          )}
+        </div>
+
+        {/* Right Sidebar - INPUT HISTORY */}
+        <div className="w-[280px] bg-[#0d0d12] border-l border-[#1A1A24] flex flex-col">
+          <div className="p-4 border-b border-[#1A1A24] flex justify-between items-center shrink-0">
+            <span className="text-xs font-bold tracking-wider text-gray-500">INPUT HISTORY</span>
+            <button onClick={() => { setInputHistory([]); setStreak(0); }} className="text-gray-500 hover:text-white transition">
+              <RotateCcw size={14} />
             </button>
           </div>
           
-          <div className="flex-1 overflow-auto space-y-2 bg-black rounded-lg p-3 flex flex-col">
+          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-1">
             {inputHistory.length === 0 ? (
-              <div className="text-gray-500 text-center text-sm py-8">
-                No inputs yet...
-              </div>
+              <div className="text-xs text-gray-600 text-center mt-10">Waiting for input...</div>
             ) : (
               [...inputHistory].reverse().map((item, idx) => {
                 const actualIndex = inputHistory.length - idx;
-                // Calculate frames since previous input
                 const prevItem = inputHistory[inputHistory.length - idx - 2];
                 const timeSincePrev = prevItem ? item.time - prevItem.time : 0;
                 const frames = timeSincePrev > 2000 ? 0 : Math.round(timeSincePrev / 16.67);
                 
+                const isBtn = item.input.includes('1') || item.input.includes('2') || item.input.includes('3') || item.input.includes('4');
+                const isNeutral = item.input === 'n';
+
                 return (
-                  <div
-                    key={actualIndex}
-                    className="flex items-center justify-between bg-slate-900 p-2 rounded border border-slate-700"
-                  >
+                  <div key={actualIndex} className="flex items-center justify-between py-1.5 px-2 hover:bg-[#1A1A24] rounded group transition">
                     <div className="flex items-center gap-2">
-                      {item.input === 'n' ? (
-                        <span className="w-8 h-8 border-2 border-gray-600 rounded"></span>
+                      {isNeutral ? (
+                        <span className="w-5 h-5 flex items-center justify-center text-[10px] text-gray-600 font-bold">★</span>
                       ) : (
-                      <span className={`text-2xl ${item.input.includes('+') ? 'text-orange-400' : 'text-purple-400'}`}>
-                        {notationMap[item.input] || item.input}
-                      </span>
+                        <span className={`text-sm font-bold ${isBtn ? 'text-yellow-400' : 'text-gray-300'}`}>
+                          {item.input.split('+').map(i => notationMap[i] || i).join(' + ')}
+                        </span>
                       )}
                     </div>
-                    <span className="text-green-400 text-xs font-mono">{frames}f</span>
+                    {frames > 0 && <span className="text-[10px] text-gray-500 font-mono opacity-50 group-hover:opacity-100">{frames}F</span>}
                   </div>
                 );
               })
@@ -599,190 +760,6 @@ const TekkenInputTrainer = () => {
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="flex-1">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h1 className="text-4xl font-bold text-yellow-400">TEKKEN INPUT TRAINER</h1>
-              <p className="text-gray-300 text-sm">Frame-perfect execution practice</p>
-            </div>
-            <button
-              onClick={() => setShowSettings(!showSettings)}
-              className="bg-slate-700 hover:bg-slate-600 p-3 rounded-lg transition"
-            >
-              <Settings className="text-white" size={24} />
-            </button>
-          </div>
-
-          {/* Settings Panel */}
-          {showSettings && (
-            <div className="bg-slate-800 border-2 border-purple-500 rounded-lg p-6 mb-6">
-              <h2 className="text-2xl font-bold text-white mb-4">Settings</h2>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <h3 className="text-yellow-400 font-semibold">Directional</h3>
-                  {['up', 'down', 'left', 'right'].map(key => (
-                    <button
-                      key={key}
-                      onClick={() => startRebind(key)}
-                      className={`w-full p-2 rounded text-sm ${
-                        editingKey === key 
-                          ? 'bg-yellow-500 text-black animate-pulse' 
-                          : 'bg-slate-700 text-white hover:bg-slate-600'
-                      }`}
-                    >
-                      {key.toUpperCase()}: {editingKey === key ? 'Press...' : keyBinds[key].toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-yellow-400 font-semibold">Buttons</h3>
-                  {['btn1', 'btn2', 'btn3', 'btn4'].map(key => (
-                    <button
-                      key={key}
-                      onClick={() => startRebind(key)}
-                      className={`w-full p-2 rounded text-sm ${
-                        editingKey === key 
-                          ? 'bg-yellow-500 text-black animate-pulse' 
-                          : 'bg-slate-700 text-white hover:bg-slate-600'
-                      }`}
-                    >
-                      {key.toUpperCase()}: {editingKey === key ? 'Press...' : keyBinds[key].toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-yellow-400 font-semibold">Actions</h3>
-                  <button
-                    onClick={() => setShowSettings(false)}
-                    className="w-full p-2 rounded bg-green-600 hover:bg-green-700 text-white text-sm"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Detection Mode Selection */}
-          <div className="bg-slate-800 rounded-lg p-6 mb-6 border-2 border-blue-500">
-            <h2 className="text-xl font-bold text-white mb-4">Detection Mode</h2>
-            <div className="grid grid-cols-3 gap-3">
-              <button
-                onClick={() => setDetectionMode('auto')}
-                className={`p-3 rounded-lg font-semibold transition ${
-                  detectionMode === 'auto'
-                    ? 'bg-yellow-500 text-black'
-                    : 'bg-slate-700 text-white hover:bg-slate-600'
-                }`}
-              >
-                Auto Detect All
-              </button>
-              {Object.keys(moves).map(moveKey => (
-                <button
-                  key={moveKey}
-                  onClick={() => setDetectionMode(moveKey)}
-                  className={`p-3 rounded-lg font-semibold text-sm transition ${
-                    detectionMode === moveKey
-                      ? 'bg-yellow-500 text-black'
-                      : 'bg-slate-700 text-white hover:bg-slate-600'
-                  }`}
-                >
-                  {moves[moveKey].name}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Perfect Indicator Box */}
-          <div className="bg-slate-800 rounded-lg p-8 mb-6 border-2 border-pink-500 min-h-48 flex items-center justify-center">
-            {lastPerfect ? (
-              <div className="text-center">
-                <div className="text-9xl mb-4 animate-bounce">⚡</div>
-                <div className="text-4xl font-bold text-yellow-400">PERFECT!</div>
-                <div className="text-2xl text-white mt-2">{detectedMove?.name}</div>
-                <div className="text-xl text-green-400 mt-2">{detectedMove?.frames} frames</div>
-              </div>
-            ) : detectedMove ? (
-              <div className="text-center">
-                <div className="text-7xl mb-4">✓</div>
-                <div className="text-3xl font-bold text-blue-400">SUCCESS</div>
-                <div className="text-xl text-white mt-2">{detectedMove?.name}</div>
-                <div className="text-lg text-yellow-400 mt-2">{detectedMove?.frames} frames</div>
-              </div>
-            ) : detectionMode !== 'auto' ? (
-              <div className="text-center">
-                <div className="text-2xl text-gray-400 mb-6">{moves[detectionMode].name}</div>
-                <div className="text-sm text-gray-500 mb-2">
-                  Progress: {currentProgress}/{moves[detectionMode].input.length} | Flash: {flashSuccess ? 'Yes' : 'No'}
-                </div>
-                <div className="flex items-center justify-center gap-4">
-                  {moves[detectionMode].input.map((inp, idx) => (
-                    <span
-                      key={idx}
-                      className={`text-7xl font-bold transition-all duration-300 ${
-                        flashSuccess
-                          ? 'text-yellow-400 scale-125'
-                          : idx < currentProgress
-                          ? 'text-white scale-110'
-                          : 'text-gray-600'
-                      }`}
-                      style={{
-                        textShadow: flashSuccess
-                          ? '0 0 30px rgba(250, 204, 21, 0.9), 0 0 60px rgba(250, 204, 21, 0.6), 0 0 90px rgba(250, 204, 21, 0.4)'
-                          : idx < currentProgress
-                          ? '0 0 20px rgba(255, 255, 255, 0.8), 0 0 40px rgba(255, 255, 255, 0.5)'
-                          : 'none'
-                      }}
-                    >
-                      {notationMap[inp] || inp}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="text-center text-gray-500">
-                <Play className="mx-auto mb-4" size={64} />
-                <div className="text-2xl">Start practicing...</div>
-              </div>
-            )}
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="bg-slate-800 border-2 border-yellow-500 rounded-lg p-4 text-center">
-              <div className="text-yellow-400 text-sm uppercase font-bold">Streak</div>
-              <div className="text-5xl font-bold text-white">{streak}</div>
-            </div>
-            <div className="bg-slate-800 border-2 border-green-500 rounded-lg p-4 text-center">
-              <div className="text-green-400 text-sm uppercase font-bold">Total Inputs</div>
-              <div className="text-5xl font-bold text-white">{inputHistory.length}</div>
-            </div>
-          </div>
-
-          {/* Move List & Best Times */}
-          <div className="bg-slate-800 rounded-lg p-6 border-2 border-purple-500">
-            <h2 className="text-xl font-bold text-white mb-4">Best Times</h2>
-            <div className="grid grid-cols-2 gap-3">
-              {Object.entries(moves).map(([key, move]) => (
-                <div
-                  key={key}
-                  className="bg-slate-900 p-3 rounded-lg border-2 border-slate-700"
-                >
-                  <div className={`text-${move.color}-400 font-bold`}>{move.name}</div>
-                  <div className="text-gray-400 text-xs mb-1">
-                    {move.input.map(i => notationMap[i] || i).join(' ')}
-                  </div>
-                  <div className="text-gray-500 text-xs">Target: ≤{move.maxFrames}f</div>
-                  <div className="text-green-400 font-bold text-lg mt-1">
-                    Best: {bestTimes[key] ? `${bestTimes[key]}f` : '--'}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

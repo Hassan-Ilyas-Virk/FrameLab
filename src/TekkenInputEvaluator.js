@@ -94,8 +94,13 @@ class TekkenInputEvaluator {
 
     this.inputBuffer.push({ input, timestamp });
     this.lastInputTime = timestamp;
+  }
 
-    return this.evaluateBuffer(timestamp);
+  /**
+   * Evaluate the current buffer
+   */
+  evaluate(currentTime) {
+    return this.evaluateBuffer(currentTime);
   }
 
   /**
@@ -126,6 +131,11 @@ class TekkenInputEvaluator {
         }
       }
       
+      // Filter duplicate inputs
+      if (cleaned.length > 0 && cleaned[cleaned.length - 1] === current) {
+        continue;
+      }
+
       cleaned.push(current);
     }
     
@@ -137,17 +147,19 @@ class TekkenInputEvaluator {
    */
   evaluateBuffer(currentTime) {
     const cleanedInputs = this.cleanBuffer();
-    const results = [];
+    let longestMatch = null;
 
     // Check each move definition
     for (const [moveKey, moveDef] of Object.entries(MOVE_DEFINITIONS)) {
       const result = this.checkMove(moveKey, moveDef, cleanedInputs, currentTime);
       if (result) {
-        results.push(result);
+        if (!longestMatch || result.replayInputs.length > longestMatch.replayInputs.length) {
+          longestMatch = result;
+        }
       }
     }
 
-    return results.length > 0 ? results : null;
+    return longestMatch ? [longestMatch] : null;
   }
 
   /**
@@ -156,13 +168,12 @@ class TekkenInputEvaluator {
   checkMove(moveKey, moveDef, cleanedInputs, currentTime) {
     const required = moveDef.input;
     
-    if (cleanedInputs.length < required.length) {
+    if (cleanedInputs.length !== required.length) {
       return null; // Not enough inputs
     }
 
-    // Check if recent inputs match
-    const recent = cleanedInputs.slice(-required.length);
-    const matches = recent.every((inp, idx) => inp === required[idx]);
+    // Check if inputs match
+    const matches = cleanedInputs.every((inp, idx) => inp === required[idx]);
 
     if (!matches) {
       return null;
@@ -179,8 +190,8 @@ class TekkenInputEvaluator {
     // Determine success
     const success = executionFrames <= moveDef.maxFrames;
     const isPerfect = moveDef.justFrame ? 
-      (executionFrames <= moveDef.maxFrames && executionFrames >= moveDef.maxFrames - JUST_FRAME_WINDOW) :
-      (executionFrames <= moveDef.maxFrames);
+      (executionFrames <= moveDef.maxFrames) :
+      (executionFrames <= moveDef.maxFrames - JUST_FRAME_WINDOW);
 
     // Calculate buffer usage (frames between inputs)
     const bufferUsed = this.calculateBufferUsage();
@@ -248,20 +259,16 @@ class TekkenInputEvaluator {
    */
   addSequence(inputs, frameGaps) {
     let timestamp = 0;
-    const results = [];
 
     for (let i = 0; i < inputs.length; i++) {
-      const result = this.addInput(inputs[i], timestamp);
-      if (result) {
-        results.push(...result);
-      }
+      this.addInput(inputs[i], timestamp);
       
       if (i < inputs.length - 1) {
         timestamp += (frameGaps[i] || 1) * FRAME_TIME;
       }
     }
 
-    return results.length > 0 ? results : null;
+    return this.evaluate(timestamp);
   }
 }
 
