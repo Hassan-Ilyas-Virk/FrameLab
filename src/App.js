@@ -7,20 +7,21 @@ const TekkenInputTrainer = () => {
   const [lastPerfect, setLastPerfect] = useState(false);
   const [streak, setStreak] = useState(0);
   const [bestTimes, setBestTimes] = useState({});
+  const [showSettings, setShowSettings] = useState(false);
 
   const [detectionMode, setDetectionMode] = useState('ewgf'); // Default to ewgf
   const [filterType, setFilterType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   
   const [keyBinds, setKeyBinds] = useState({
-    up: 'w',
-    down: 's',
-    left: 'a',
-    right: 'd',
-    btn1: 'u',
-    btn2: 'i',
-    btn3: 'j',
-    btn4: 'k'
+    up: 'KeyW',
+    down: 'KeyS',
+    left: 'KeyA',
+    right: 'KeyD',
+    btn1: 'KeyU',
+    btn2: 'KeyI',
+    btn3: 'KeyJ',
+    btn4: 'KeyK'
   });
   const [editingKey, setEditingKey] = useState(null);
   const [currentProgress, setCurrentProgress] = useState(0);
@@ -33,7 +34,10 @@ const TekkenInputTrainer = () => {
   const lastState = useRef({ direction: null, buttons: [] });
   const inputBuffer = useRef([]);
   const moveStartTime = useRef(null);
-  const directionDebounceTimer = useRef(null);
+  
+  // Artificial Latency Queue
+  const inputQueue = useRef([]);
+  const animationFrameId = useRef(null);
 
   const moves = {
     ewgf: {
@@ -288,66 +292,64 @@ const TekkenInputTrainer = () => {
     checkMoves(now, input);
   };
 
-  const processCurrentState = (now, isButtonPress = false) => {
-    if (directionDebounceTimer.current) {
-      clearTimeout(directionDebounceTimer.current);
-      directionDebounceTimer.current = null;
-    }
-    
-    if (isButtonPress) {
-      const currentDirection = getCurrentDirection();
-      const currentButtons = Array.from(pressedButtons.current).sort();
-      
-      lastInputTime.current = now;
-      
-      if (currentDirection && currentButtons.length > 0) {
-        // Special case for combinations like 1+2
-        const buttonsStr = currentButtons.join('+');
-        const combo = `${currentDirection}+${buttonsStr}`;
-        addInputToHistory(combo, now);
-        lastState.current = { direction: currentDirection, buttons: currentButtons };
-        return;
-      }
-      else if (currentButtons.length > 0) {
-        const buttonsStr = currentButtons.join('+');
-        addInputToHistory(buttonsStr, now);
-        lastState.current = { direction: currentDirection, buttons: currentButtons };
-        return;
-      }
-    }
-    
-    directionDebounceTimer.current = setTimeout(() => {
-      const currentDirection = getCurrentDirection();
-      const currentButtons = Array.from(pressedButtons.current).sort();
-      
-      const directionChanged = currentDirection !== lastState.current.direction;
-      const buttonsChanged = JSON.stringify(currentButtons) !== JSON.stringify(lastState.current.buttons);
-      
-      if (!directionChanged && !buttonsChanged) return;
-      
-      lastInputTime.current = Date.now();
-      
-      let inputToAdd = null;
-      
-      if (currentDirection && currentButtons.length > 0) {
-        const buttonsStr = currentButtons.join('+');
-        const combo = `${currentDirection}+${buttonsStr}`;
-        inputToAdd = combo;
-      }
-      else if (currentDirection) {
-        inputToAdd = currentDirection;
-      }
-      else if (!currentDirection && currentButtons.length === 0 && lastState.current.direction !== null) {
-        inputToAdd = 'n';
-      }
-      
-      if (inputToAdd) {
-        addInputToHistory(inputToAdd, Date.now());
-      }
-      
-      lastState.current = { direction: currentDirection, buttons: currentButtons };
-    }, 16); 
+  // Format key codes for display
+  const formatKeyName = (code) => {
+    return code.replace('Key', '').replace('Digit', '');
   };
+
+  // Game Loop for Input Latency (33.3ms buffer)
+  useEffect(() => {
+    const loop = () => {
+      const now = Date.now();
+      let stateToProcess = null;
+
+      // Dequeue all events that have matured (passed the 33.3ms latency threshold)
+      while (inputQueue.current.length > 0) {
+        const oldestEvent = inputQueue.current[0];
+        if (now - oldestEvent.time >= 33.3) {
+          stateToProcess = inputQueue.current.shift();
+        } else {
+          break; // Not enough time has passed for this event
+        }
+      }
+
+      // If we dequeued events, process the latest one (inherent frame debounce)
+      if (stateToProcess) {
+        const directionChanged = stateToProcess.direction !== lastState.current.direction;
+        const buttonsChanged = JSON.stringify(stateToProcess.buttons) !== JSON.stringify(lastState.current.buttons);
+
+        if (directionChanged || buttonsChanged) {
+          let inputToAdd = null;
+
+          if (stateToProcess.direction && stateToProcess.buttons.length > 0) {
+            const buttonsStr = stateToProcess.buttons.join('+');
+            inputToAdd = `${stateToProcess.direction}+${buttonsStr}`;
+          } else if (stateToProcess.direction) {
+            inputToAdd = stateToProcess.direction;
+          } else if (!stateToProcess.direction && stateToProcess.buttons.length === 0 && lastState.current.direction !== null) {
+            inputToAdd = 'n';
+          }
+
+          if (inputToAdd) {
+            addInputToHistory(inputToAdd, stateToProcess.time);
+          }
+
+          lastState.current = { direction: stateToProcess.direction, buttons: stateToProcess.buttons };
+        }
+      }
+
+      animationFrameId.current = requestAnimationFrame(loop);
+    };
+
+    animationFrameId.current = requestAnimationFrame(loop);
+
+    return () => {
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -373,15 +375,15 @@ const TekkenInputTrainer = () => {
     const handleKeyDown = (e) => {
       if (editingKey) {
         e.preventDefault();
-        const key = e.key.toLowerCase();
-        if (key !== 'escape') {
-          setKeyBinds(prev => ({ ...prev, [editingKey]: key }));
+        const code = e.code;
+        if (e.key.toLowerCase() !== 'escape') {
+          setKeyBinds(prev => ({ ...prev, [editingKey]: code }));
         }
         setEditingKey(null);
         return;
       }
 
-      const key = e.key.toLowerCase();
+      const code = e.code;
       const now = Date.now();
       const timeSinceLastInput = now - lastInputTime.current;
       
@@ -391,63 +393,72 @@ const TekkenInputTrainer = () => {
       }
 
       let wasPressed = false;
-      let isButton = false;
 
       const directionalKeys = [keyBinds.up, keyBinds.down, keyBinds.left, keyBinds.right];
-      if (directionalKeys.includes(key)) {
+      if (directionalKeys.includes(code)) {
         e.preventDefault();
-        if (!pressedDirections.current.has(key)) {
-          pressedDirections.current.add(key);
+        if (!pressedDirections.current.has(code)) {
+          pressedDirections.current.add(code);
           wasPressed = true;
         }
       }
-      else if (key === keyBinds.btn1 && !pressedButtons.current.has('1')) {
-        e.preventDefault(); pressedButtons.current.add('1'); wasPressed = true; isButton = true;
+      else if (code === keyBinds.btn1 && !pressedButtons.current.has('1')) {
+        e.preventDefault(); pressedButtons.current.add('1'); wasPressed = true;
       }
-      else if (key === keyBinds.btn2 && !pressedButtons.current.has('2')) {
-        e.preventDefault(); pressedButtons.current.add('2'); wasPressed = true; isButton = true;
+      else if (code === keyBinds.btn2 && !pressedButtons.current.has('2')) {
+        e.preventDefault(); pressedButtons.current.add('2'); wasPressed = true;
       }
-      else if (key === keyBinds.btn3 && !pressedButtons.current.has('3')) {
-        e.preventDefault(); pressedButtons.current.add('3'); wasPressed = true; isButton = true;
+      else if (code === keyBinds.btn3 && !pressedButtons.current.has('3')) {
+        e.preventDefault(); pressedButtons.current.add('3'); wasPressed = true;
       }
-      else if (key === keyBinds.btn4 && !pressedButtons.current.has('4')) {
-        e.preventDefault(); pressedButtons.current.add('4'); wasPressed = true; isButton = true;
+      else if (code === keyBinds.btn4 && !pressedButtons.current.has('4')) {
+        e.preventDefault(); pressedButtons.current.add('4'); wasPressed = true;
       }
 
       if (wasPressed) {
-        processCurrentState(now, isButton);
+        lastInputTime.current = now;
+        inputQueue.current.push({
+          time: now,
+          direction: getCurrentDirection(),
+          buttons: Array.from(pressedButtons.current).sort()
+        });
       }
     };
 
     const handleKeyUp = (e) => {
-      const key = e.key.toLowerCase();
+      const code = e.code;
       const now = Date.now();
       
       let wasReleased = false;
       
       const directionalKeys = [keyBinds.up, keyBinds.down, keyBinds.left, keyBinds.right];
-      if (directionalKeys.includes(key)) {
+      if (directionalKeys.includes(code)) {
         e.preventDefault();
-        if (pressedDirections.current.has(key)) {
-          pressedDirections.current.delete(key);
+        if (pressedDirections.current.has(code)) {
+          pressedDirections.current.delete(code);
           wasReleased = true;
         }
       }
-      else if (key === keyBinds.btn1 && pressedButtons.current.has('1')) {
+      else if (code === keyBinds.btn1 && pressedButtons.current.has('1')) {
         e.preventDefault(); pressedButtons.current.delete('1'); wasReleased = true;
       }
-      else if (key === keyBinds.btn2 && pressedButtons.current.has('2')) {
+      else if (code === keyBinds.btn2 && pressedButtons.current.has('2')) {
         e.preventDefault(); pressedButtons.current.delete('2'); wasReleased = true;
       }
-      else if (key === keyBinds.btn3 && pressedButtons.current.has('3')) {
+      else if (code === keyBinds.btn3 && pressedButtons.current.has('3')) {
         e.preventDefault(); pressedButtons.current.delete('3'); wasReleased = true;
       }
-      else if (key === keyBinds.btn4 && pressedButtons.current.has('4')) {
+      else if (code === keyBinds.btn4 && pressedButtons.current.has('4')) {
         e.preventDefault(); pressedButtons.current.delete('4'); wasReleased = true;
       }
 
       if (wasReleased) {
-        processCurrentState(now);
+        lastInputTime.current = now;
+        inputQueue.current.push({
+          time: now,
+          direction: getCurrentDirection(),
+          buttons: Array.from(pressedButtons.current).sort()
+        });
       }
     };
 
@@ -457,9 +468,6 @@ const TekkenInputTrainer = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
-      if (directionDebounceTimer.current) {
-        clearTimeout(directionDebounceTimer.current);
-      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyBinds, editingKey]);
@@ -471,10 +479,6 @@ const TekkenInputTrainer = () => {
     setFlashSuccess(false);
     inputBuffer.current = [];
     moveStartTime.current = null;
-    if (directionDebounceTimer.current) {
-      clearTimeout(directionDebounceTimer.current);
-      directionDebounceTimer.current = null;
-    }
   }, [detectionMode]);
 
   const renderDrillSequence = (move) => {
@@ -576,7 +580,7 @@ const TekkenInputTrainer = () => {
             <button className="px-4 py-2 text-sm text-gray-500 hover:text-gray-300 transition">practice</button>
             <button className="px-4 py-2 text-sm bg-[#1A1A24] text-gray-200 rounded-md">movedex</button>
             <button className="px-4 py-2 text-sm text-gray-500 hover:text-gray-300 transition">test runner</button>
-            <button className="px-4 py-2 text-sm text-gray-500 hover:text-gray-300 transition">settings</button>
+            <button onClick={() => setShowSettings(true)} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-300 transition">settings</button>
           </nav>
         </div>
         <div className="flex items-center gap-6 text-sm text-gray-500">
@@ -762,6 +766,62 @@ const TekkenInputTrainer = () => {
         </div>
 
       </div>
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+          <div className="bg-[#13131A] border border-[#1A1A24] rounded-lg p-6 w-[500px] shadow-2xl">
+            <h2 className="text-2xl font-bold text-white mb-6 uppercase tracking-wider">Key Bindings</h2>
+            
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <h3 className="text-gray-500 text-xs font-bold tracking-wider mb-2">DIRECTIONAL</h3>
+                {['up', 'down', 'left', 'right'].map(key => (
+                  <button
+                    key={key}
+                    onClick={() => setEditingKey(key)}
+                    className={`w-full flex justify-between items-center p-3 rounded-md border ${
+                      editingKey === key 
+                        ? 'border-purple-500 bg-purple-900/20 text-purple-400' 
+                        : 'border-[#2D2D3F] bg-[#1A1A24] text-gray-300 hover:border-gray-500'
+                    }`}
+                  >
+                    <span className="uppercase text-xs font-bold">{key}</span>
+                    <span className="font-mono">{editingKey === key ? 'Press key...' : formatKeyName(keyBinds[key])}</span>
+                  </button>
+                ))}
+              </div>
+              
+              <div className="space-y-3">
+                <h3 className="text-gray-500 text-xs font-bold tracking-wider mb-2">ATTACK BUTTONS</h3>
+                {['btn1', 'btn2', 'btn3', 'btn4'].map((key, idx) => (
+                  <button
+                    key={key}
+                    onClick={() => setEditingKey(key)}
+                    className={`w-full flex justify-between items-center p-3 rounded-md border ${
+                      editingKey === key 
+                        ? 'border-yellow-500 bg-yellow-900/20 text-yellow-400' 
+                        : 'border-[#2D2D3F] bg-[#1A1A24] text-gray-300 hover:border-gray-500'
+                    }`}
+                  >
+                    <span className="uppercase text-xs font-bold">Button {idx + 1}</span>
+                    <span className="font-mono">{editingKey === key ? 'Press key...' : formatKeyName(keyBinds[key])}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div className="mt-8 flex justify-end">
+              <button
+                onClick={() => setShowSettings(false)}
+                className="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2 rounded-md font-bold transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
