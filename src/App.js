@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Settings, Play, RotateCcw, Search, Info } from 'lucide-react';
+import { RotateCcw, Search, Info } from 'lucide-react';
 
 const TekkenInputTrainer = () => {
   const [inputHistory, setInputHistory] = useState([]);
@@ -7,7 +7,6 @@ const TekkenInputTrainer = () => {
   const [lastPerfect, setLastPerfect] = useState(false);
   const [streak, setStreak] = useState(0);
   const [bestTimes, setBestTimes] = useState({});
-  const [showSettings, setShowSettings] = useState(false);
   const [detectionMode, setDetectionMode] = useState('ewgf'); // Default to ewgf
   const [filterType, setFilterType] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -26,7 +25,6 @@ const TekkenInputTrainer = () => {
   const [currentProgress, setCurrentProgress] = useState(0);
   const [flashSuccess, setFlashSuccess] = useState(false);
   
-  const sessionStartTime = useRef(Date.now());
   const lastInputTime = useRef(Date.now());
   const pressedDirections = useRef(new Set());
   const pressedButtons = useRef(new Set());
@@ -463,6 +461,7 @@ const TekkenInputTrainer = () => {
         clearTimeout(directionDebounceTimer.current);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyBinds, editingKey]);
 
   useEffect(() => {
