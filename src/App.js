@@ -94,7 +94,7 @@ const TekkenInputTrainer = () => {
     },
     kbd: {
       name: 'KBD',
-      input: ['b', 'b', 'db', 'b'],
+      input: ['b', 'n', 'b', 'db', 'b'],
       maxFrames: 12,
       description: 'Korean Backdash',
       startup: '--',
@@ -107,7 +107,7 @@ const TekkenInputTrainer = () => {
     },
     run: {
       name: 'RUN',
-      input: ['f', 'f', 'f'],
+      input: ['f', 'n', 'f', 'n', 'f'],
       maxFrames: 20,
       description: 'Forward run',
       startup: '--',
@@ -133,7 +133,7 @@ const TekkenInputTrainer = () => {
     },
     backdash: {
       name: 'BACKDASH',
-      input: ['b', 'b'],
+      input: ['b', 'n', 'b'],
       maxFrames: 15,
       description: 'Quick back dash',
       startup: '--',
@@ -193,8 +193,12 @@ const TekkenInputTrainer = () => {
       
       if (current.includes('+')) {
         const parts = current.split('+');
-        cleanedBuffer.push(parts[0]);
-        cleanedBuffer.push(parts[1]);
+        if (cleanedBuffer.length === 0 || cleanedBuffer[cleanedBuffer.length - 1] !== parts[0]) {
+          cleanedBuffer.push(parts[0]);
+        }
+        if (cleanedBuffer.length === 0 || cleanedBuffer[cleanedBuffer.length - 1] !== parts[1]) {
+          cleanedBuffer.push(parts[1]);
+        }
         continue;
       }
       
@@ -205,11 +209,13 @@ const TekkenInputTrainer = () => {
         if (next && next.includes('+')) {
           const nextDir = next.split('+')[0];
           if (prev === nextDir) continue;
-        } else if (prev && next && prev === next && ['f', 'b', 'u', 'd'].includes(prev)) {
-          continue;
         }
       }
       
+      if (cleanedBuffer.length > 0 && cleanedBuffer[cleanedBuffer.length - 1] === current) {
+        continue;
+      }
+
       cleanedBuffer.push(current);
     }
 
